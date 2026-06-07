@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administración · Seating Chart</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Lato:wght@300;400;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #b89c6e;
+      --gold-light: #d4b483;
+      --cream: #faf7f2;
+      --dark: #2c2c2c;
+      --muted: #7a7060;
+      --border: #e8dfc8;
+      --red: #c0392b;
+      --green: #27ae60;
+    }
+
+    body {
+      font-family: 'Lato', sans-serif;
+      background: #f4f1eb;
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--dark);
+      color: #fff;
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+    }
+    header .gold { color: var(--gold); }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+
+    /* MAIN LAYOUT */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 28px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--dark); }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* SECTIONS */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* CARDS */
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 400;
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      color: var(--dark);
+    }
+
+    /* STATS */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.8rem;
+      font-weight: 300;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* FORMS */
+    .form-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label {
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    input[type="text"], input[type="number"], input[type="url"], input[type="color"] {
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-family: 'Lato', sans-serif;
+      color: var(--dark);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    input:focus { border-color: var(--gold); background: #fff; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 2px;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--gold); color: #fff; }
+    .btn-primary:hover { background: var(--gold-light); }
+    .btn-danger { background: #fdf0ef; color: var(--red); border: 1px solid #f0d0ce; }
+    .btn-danger:hover { background: #f9e0de; }
+    .btn-outline { background: transparent; color: var(--dark); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-sm { padding: 6px 12px; font-size: 0.7rem; }
+    .btn-icon { padding: 8px; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid #f0ebe0;
+      vertical-align: middle;
+    }
+    tr:hover td { background: var(--cream); }
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      font-weight: 700;
+      background: #f0e8d5;
+      color: var(--gold);
+    }
+
+    /* SEARCH BAR */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-bar input { flex: 1; min-width: 200px; }
+
+    /* IMPORT ZONE */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 4px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--cream);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--gold);
+      background: #fdf8f0;
+    }
+    .drop-zone p { color: var(--muted); margin-top: 8px; font-size: 0.9rem; }
+    .drop-icon { font-size: 2.5rem; color: var(--gold); opacity: 0.5; }
+
+    .template-hint {
+      background: #f0f7ff;
+      border: 1px solid #c8dff5;
+      border-radius: 2px;
+      padding: 12px 16px;
+      font-size: 0.82rem;
+      color: #4a6fa5;
+      margin-top: 16px;
+    }
+    .template-hint strong { font-weight: 700; }
+
+    /* QR SECTION */
+    .qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 0;
+    }
+    #qr-canvas {
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 16px;
+      background: #fff;
+    }
+    .qr-url {
+      font-size: 0.8rem;
+      color: var(--muted);
+      word-break: break-all;
+      text-align: center;
+      max-width: 380px;
+    }
+
+    /* CONFIG */
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 600px) { .config-grid { grid-template-columns: 1fr; } }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--dark);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: 2px;
+      font-size: 0.85rem;
+      transition: transform 0.3s;
+      z-index: 999;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { background: var(--green); }
+    #toast.error   { background: var(--red); }
+
+    /* MODAL */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 2px;
+      padding: 36px;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+    }
+    .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon { font-size: 2.5rem; opacity: 0.3; margin-bottom: 12px; }
+
+    .table-num-cell {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--gold);
+    }
+
+    /* Photo upload */
+    .photo-upload-area {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .photo-preview {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border);
+      background: var(--cream);
+      flex-shrink: 0;
+    }
+    .photo-placeholder {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 2px dashed var(--border);
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      flex-shrink: 0;
+      color: var(--muted);
+    }
+    .photo-actions { display: flex; flex-direction: column; gap: 6px; }
+
+    /* Avatar in table */
+    .guest-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .guest-avatar-placeholder {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      vertical-align: middle;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Seating Chart <span class="gold">·</span> Admin</h1>
+  <div class="header-actions">
+    <a href="index.html" target="_blank" class="btn btn-outline btn-sm">Ver página de invitados ↗</a>
+  </div>
+</header>
+
+<main>
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-number" id="stat-guests">0</div>
+      <div class="stat-label">Invitados</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="stat-tables">0</div>
+      <div class="stat-label">Mesas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="stat-event">—</div>
+      <div class="stat-label">Evento</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('invitados')">Invitados</div>
+    <div class="tab" onclick="switchTab('importar')">Importar</div>
+    <div class="tab" onclick="switchTab('qr')">Código QR</div>
+    <div class="tab" onclick="switchTab('config')">Configuración</div>
+  </div>
+
+  <!-- SECTION: INVITADOS -->
+  <div class="section active" id="tab-invitados">
+    <div class="card">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Buscar invitado..." oninput="renderTable()" />
+        <button class="btn btn-primary" onclick="openAddModal()">+ Agregar invitado</button>
+        <button class="btn btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmClear()">Borrar todo</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="guests-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>Mesa</th>
+              <th>Nombre de mesa</th>
+              <th>Asiento</th>
+              <th>Notas</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="guests-tbody"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state" style="display:none">
+          <div class="empty-icon">🪑</div>
+          <div>No hay invitados. Agrega uno manualmente o importa un archivo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: IMPORTAR -->
+  <div class="section" id="tab-importar">
+    <div class="card">
+      <h2>Importar desde Excel o CSV</h2>
+      <div
+        class="drop-zone"
+        id="drop-zone"
+        onclick="document.getElementById('file-input').click()"
+        ondragover="handleDragOver(event)"
+        ondragleave="handleDragLeave(event)"
+        ondrop="handleDrop(event)"
+      >
+        <div class="drop-icon">📂</div>
+        <strong>Arrastra tu archivo aquí</strong>
+        <p>o haz clic para seleccionar · .xlsx, .xls, .csv</p>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])" />
+
+      <div class="template-hint" style="margin-top:20px">
+        <strong>Columnas reconocidas:</strong>
+        <code>nombre</code> (requerido) · <code>mesa</code> (requerido) · <code>nombre_mesa</code> · <code>asiento</code> · <code>notas</code>
+        <br/><br/>
+        La primera fila debe ser el encabezado. El archivo puede estar en cualquier idioma mientras los encabezados coincidan.
+        <br/><br/>
+        <a href="#" onclick="downloadTemplate(); return false;" style="color:#4a6fa5;font-weight:700">⬇ Descargar plantilla de ejemplo</a>
+      </div>
+    </div>
+
+    <div class="card" id="preview-card" style="display:none">
+      <h2>Vista previa de importación</h2>
+      <div class="table-wrap">
+        <table>
+          <thead id="preview-head"></thead>
+          <tbody id="preview-body"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:20px; display:flex; gap:12px; align-items:center">
+        <button class="btn btn-primary" onclick="confirmImport()">✓ Importar <span id="import-count"></span> invitados</button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer">
+          <input type="radio" name="import-mode" value="replace" checked /> Reemplazar lista actual
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer">
+          <input type="radio" name="import-mode" value="append" /> Agregar a la lista
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: QR -->
+  <div class="section" id="tab-qr">
+    <div class="card">
+      <h2>Código QR para invitados</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:20px">
+        Los invitados escanean este código y acceden directamente a la página de búsqueda.
+      </p>
+
+      <div class="form-group" style="margin-bottom:20px;max-width:480px">
+        <label>URL de la página de invitados</label>
+        <div style="display:flex;gap:8px">
+          <input type="url" id="qr-url-input" placeholder="https://tu-dominio.com/index.html" />
+          <button class="btn btn-primary" onclick="generateQR()">Generar</button>
+        </div>
+      </div>
+
+      <div class="qr-wrap">
+        <canvas id="qr-canvas" style="display:none"></canvas>
+        <div id="qr-placeholder" style="color:var(--muted);font-size:0.9rem;font-style:italic">Ingresa la URL y haz clic en "Generar"</div>
+        <div class="qr-url" id="qr-url-display" style="display:none"></div>
+        <div style="display:flex;gap:12px" id="qr-actions" style="display:none">
+          <button class="btn btn-primary" onclick="downloadQR('png')">⬇ Descargar PNG</button>
+          <button class="btn btn-outline" onclick="downloadQR('svg')">⬇ Descargar SVG</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: CONFIG -->
+  <div class="section" id="tab-config">
+    <div class="card">
+      <h2>Configuración del evento</h2>
+      <div class="config-grid">
+        <div class="form-group">
+          <label>Nombre del evento</label>
+          <input type="text" id="cfg-name" placeholder="Boda de Ana & Luis" />
+        </div>
+        <div class="form-group">
+          <label>Fecha o subtítulo</label>
+          <input type="text" id="cfg-date" placeholder="14 de febrero, 2025" />
+        </div>
+        <div class="form-group">
+          <label>Color principal</label>
+          <input type="color" id="cfg-color" value="#b89c6e" />
+        </div>
+      </div>
+      <div style="margin-top:24px">
+        <button class="btn btn-primary" onclick="saveConfig()">Guardar configuración</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Zona de peligro</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:16px">Estas acciones no se pueden deshacer.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-danger" onclick="confirmClear()">Borrar todos los invitados</button>
+        <button class="btn btn-danger" onclick="confirmReset()">Restablecer todo</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- MODAL: Add/Edit Guest -->
+<div class="modal-backdrop" id="guest-modal">
+  <div class="modal">
+    <h3 id="modal-title">Agregar invitado</h3>
+    <input type="hidden" id="modal-index" value="-1" />
+
+    <!-- Photo -->
+    <div class="photo-upload-area">
+      <div id="modal-photo-preview" class="photo-placeholder">👤</div>
+      <div class="photo-actions">
+        <label class="btn btn-outline btn-sm" style="cursor:pointer;margin:0">
+          📷 Subir foto
+          <input type="file" id="modal-photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(this)" />
+        </label>
+        <button class="btn btn-danger btn-sm" onclick="clearPhoto()" id="modal-photo-clear" style="display:none">✕ Quitar foto</button>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Nombre completo *</label>
+      <input type="text" id="modal-name" placeholder="María García" />
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="form-group">
+        <label>Número de mesa *</label>
+        <input type="text" id="modal-table" placeholder="5" />
+      </div>
+      <div class="form-group">
+        <label>Nombre de mesa</label>
+        <input type="text" id="modal-table-name" placeholder="Mesa del jardín" />
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="form-group">
+        <label>Asiento</label>
+        <input type="text" id="modal-seat" placeholder="A3" />
+      </div>
+      <div class="form-group">
+        <label>Notas</label>
+        <input type="text" id="modal-notes" placeholder="Menú vegetariano" />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveGuest()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  const STORAGE_KEY = 'wedding_guests';
+  const CONFIG_KEY  = 'wedding_config';
+
+  let pendingImport = [];
+
+  /* ── Storage ── */
+  function getGuests() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveGuests(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    updateStats();
+    renderTable();
+  }
+  function getConfig() {
+    try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveConfigData(cfg) {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  }
+
+  /* ── Stats ── */
+  function updateStats() {
+    const guests = getGuests();
+    const tables = new Set(guests.map(g => String(g.table).trim())).size;
+    document.getElementById('stat-guests').textContent = guests.length;
+    document.getElementById('stat-tables').textContent = tables || 0;
+    const cfg = getConfig();
+    document.getElementById('stat-event').textContent = cfg.eventName ? cfg.eventName.slice(0,10) : '—';
+  }
+
+  /* ── Tabs ── */
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      const ids = ['invitados','importar','qr','config'];
+      t.classList.toggle('active', ids[i] === id);
+    });
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+  }
+
+  /* ── Table render ── */
+  function renderTable() {
+    const guests = getGuests();
+    const q = document.getElementById('search-input').value.toLowerCase();
+    const filtered = q
+      ? guests.filter(g =>
+          g.name.toLowerCase().includes(q) ||
+          String(g.table).includes(q) ||
+          (g.tableName||'').toLowerCase().includes(q)
+        )
+      : guests;
+
+    const tbody = document.getElementById('guests-tbody');
+    const empty = document.getElementById('empty-state');
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = filtered.map((g, i) => `
+      <tr>
+        <td style="color:var(--muted);font-size:0.8rem">${guests.indexOf(g) + 1}</td>
+        <td>
+          ${g.photo
+            ? `<img class="guest-avatar" src="${g.photo}" alt="" />`
+            : `<span class="guest-avatar-placeholder">👤</span>`}
+          <strong style="margin-left:8px">${escHtml(g.name)}</strong>
+        </td>
+        <td><span class="table-num-cell">${escHtml(String(g.table))}</span></td>
+        <td style="color:var(--muted)">${escHtml(g.tableName||'')}</td>
+        <td>${escHtml(g.seat||'')}</td>
+        <td style="color:var(--muted);font-size:0.82rem">${escHtml(g.notes||'')}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm btn-icon" title="Editar" onclick="openEditModal(${guests.indexOf(g)})">✏</button>
+            <button class="btn btn-danger btn-sm btn-icon" title="Eliminar" onclick="deleteGuest(${guests.indexOf(g)})">✕</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ── Photo handling ── */
+  let pendingPhoto = null; // base64 string or null
+
+  function handlePhotoUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        // Compress to max 200x200
+        const size = 200;
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(size / img.width, size / img.height);
+        canvas.width  = Math.round(img.width  * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        pendingPhoto = canvas.toDataURL('image/jpeg', 0.8);
+        setPhotoPreview(pendingPhoto);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    input.value = ''; // reset so same file can be re-selected
+  }
+
+  function setPhotoPreview(src) {
+    const preview = document.getElementById('modal-photo-preview');
+    const clearBtn = document.getElementById('modal-photo-clear');
+    if (src) {
+      preview.outerHTML = `<img id="modal-photo-preview" class="photo-preview" src="${src}" />`;
+      clearBtn.style.display = 'block';
+    } else {
+      const el = document.getElementById('modal-photo-preview');
+      el.outerHTML = `<div id="modal-photo-preview" class="photo-placeholder">👤</div>`;
+      clearBtn.style.display = 'none';
+    }
+  }
+
+  function clearPhoto() {
+    pendingPhoto = null;
+    setPhotoPreview(null);
+  }
+
+  /* ── Modal ── */
+  function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Agregar invitado';
+    document.getElementById('modal-index').value = -1;
+    ['modal-name','modal-table','modal-table-name','modal-seat','modal-notes'].forEach(id =>
+      document.getElementById(id).value = ''
+    );
+    pendingPhoto = null;
+    setPhotoPreview(null);
+    document.getElementById('guest-modal').classList.add('open');
+    document.getElementById('modal-name').focus();
+  }
+
+  function openEditModal(idx) {
+    const g = getGuests()[idx];
+    document.getElementById('modal-title').textContent = 'Editar invitado';
+    document.getElementById('modal-index').value = idx;
+    document.getElementById('modal-name').value = g.name || '';
+    document.getElementById('modal-table').value = g.table || '';
+    document.getElementById('modal-table-name').value = g.tableName || '';
+    document.getElementById('modal-seat').value = g.seat || '';
+    document.getElementById('modal-notes').value = g.notes || '';
+    pendingPhoto = g.photo || null;
+    setPhotoPreview(pendingPhoto);
+    document.getElementById('guest-modal').classList.add('open');
+    document.getElementById('modal-name').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('guest-modal').classList.remove('open');
+    pendingPhoto = null;
+  }
+
+  function saveGuest() {
+    const name  = document.getElementById('modal-name').value.trim();
+    const table = document.getElementById('modal-table').value.trim();
+    if (!name || !table) { toast('Nombre y mesa son requeridos', 'error'); return; }
+
+    const guest = {
+      name,
+      table,
+      tableName: document.getElementById('modal-table-name').value.trim(),
+      seat:      document.getElementById('modal-seat').value.trim(),
+      notes:     document.getElementById('modal-notes').value.trim(),
+      photo:     pendingPhoto || null,
+    };
+
+    const list = getGuests();
+    const idx  = parseInt(document.getElementById('modal-index').value);
+    if (idx >= 0) { list[idx] = guest; }
+    else          { list.push(guest); }
+
+    saveGuests(list);
+    closeModal();
+    toast(idx >= 0 ? 'Invitado actualizado' : 'Invitado agregado', 'success');
+  }
+
+  function deleteGuest(idx) {
+    if (!confirm('¿Eliminar este invitado?')) return;
+    const list = getGuests();
+    list.splice(idx, 1);
+    saveGuests(list);
+    toast('Invitado eliminado');
+  }
+
+  /* ── Import ── */
+  function handleDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+  function handleDragLeave() { document.getElementById('drop-zone').classList.remove('drag-over'); }
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb   = XLSX.read(data, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        processImport(rows);
+      } catch(err) {
+        toast('Error al leer el archivo', 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  const FIELD_MAP = {
+    nombre: 'name', name: 'name',
+    mesa: 'table', table: 'table', 'número de mesa': 'table', 'numero de mesa': 'table',
+    nombre_mesa: 'tableName', 'nombre de mesa': 'tableName', table_name: 'tableName',
+    asiento: 'seat', seat: 'seat',
+    notas: 'notes', notes: 'notes', nota: 'notes',
+  };
+
+  function processImport(rows) {
+    if (!rows.length) { toast('El archivo está vacío', 'error'); return; }
+
+    pendingImport = rows.map(row => {
+      const guest = {};
+      Object.entries(row).forEach(([k, v]) => {
+        const mapped = FIELD_MAP[k.toLowerCase().trim()];
+        if (mapped) guest[mapped] = String(v).trim();
+      });
+      return guest;
+    }).filter(g => g.name && g.table);
+
+    if (!pendingImport.length) {
+      toast('No se encontraron columnas "nombre" y "mesa"', 'error');
+      return;
+    }
+
+    // Preview
+    const previewCard = document.getElementById('preview-card');
+    previewCard.style.display = 'block';
+    document.getElementById('import-count').textContent = pendingImport.length;
+
+    document.getElementById('preview-head').innerHTML = `
+      <tr>
+        <th>Nombre</th><th>Mesa</th><th>Nombre mesa</th><th>Asiento</th><th>Notas</th>
+      </tr>`;
+    document.getElementById('preview-body').innerHTML =
+      pendingImport.slice(0, 10).map(g => `
+        <tr>
+          <td>${escHtml(g.name||'')}</td>
+          <td><span class="table-num-cell">${escHtml(g.table||'')}</span></td>
+          <td>${escHtml(g.tableName||'')}</td>
+          <td>${escHtml(g.seat||'')}</td>
+          <td>${escHtml(g.notes||'')}</td>
+        </tr>`).join('') +
+      (pendingImport.length > 10
+        ? `<tr><td colspan="5" style="color:var(--muted);font-size:0.82rem;text-align:center">... y ${pendingImport.length - 10} más</td></tr>`
+        : '');
+
+    toast(`${pendingImport.length} invitados listos para importar`);
+  }
+
+  function confirmImport() {
+    if (!pendingImport.length) return;
+    const mode = document.querySelector('input[name="import-mode"]:checked').value;
+    const list = mode === 'append' ? [...getGuests(), ...pendingImport] : [...pendingImport];
+    saveGuests(list);
+    document.getElementById('preview-card').style.display = 'none';
+    pendingImport = [];
+    toast(`${list.length} invitados importados`, 'success');
+    switchTab('invitados');
+  }
+
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['nombre','mesa','nombre_mesa','asiento','notas'],
+      ['María García','5','Mesa de los novios','A1','Menú vegetariano'],
+      ['Juan Pérez','5','Mesa de los novios','A2',''],
+      ['Laura Gómez','3','Mesa familiar','B1','Alergia al gluten'],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
+    XLSX.writeFile(wb, 'plantilla_invitados.xlsx');
+  }
+
+  /* ── Export CSV ── */
+  function exportCSV() {
+    const guests = getGuests();
+    if (!guests.length) { toast('No hay invitados', 'error'); return; }
+    const ws = XLSX.utils.json_to_sheet(guests.map(g => ({
+      nombre: g.name, mesa: g.table, nombre_mesa: g.tableName||'',
+      asiento: g.seat||'', notas: g.notes||''
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invitados');
+    XLSX.writeFile(wb, 'invitados.xlsx');
+    toast('Archivo exportado');
+  }
+
+  /* ── QR ── */
+  function generateQR() {
+    const url = document.getElementById('qr-url-input').value.trim();
+    if (!url) { toast('Ingresa una URL', 'error'); return; }
+
+    const canvas = document.getElementById('qr-canvas');
+    QRCode.toCanvas(canvas, url, {
+      width: 280,
+      margin: 2,
+      color: { dark: '#2c2c2c', light: '#ffffff' }
+    }, err => {
+      if (err) { toast('Error generando QR', 'error'); return; }
+      canvas.style.display = 'block';
+      document.getElementById('qr-placeholder').style.display = 'none';
+      document.getElementById('qr-url-display').textContent = url;
+      document.getElementById('qr-url-display').style.display = 'block';
+      document.getElementById('qr-actions').style.display = 'flex';
+    });
+  }
+
+  function downloadQR(format) {
+    const canvas = document.getElementById('qr-canvas');
+    const link = document.createElement('a');
+    link.download = 'qr-boda.' + format;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  /* ── Config ── */
+  function loadConfig() {
+    const cfg = getConfig();
+    document.getElementById('cfg-name').value  = cfg.eventName || '';
+    document.getElementById('cfg-date').value  = cfg.eventDate || '';
+    document.getElementById('cfg-color').value = cfg.primaryColor || '#b89c6e';
+  }
+
+  function saveConfig() {
+    const cfg = {
+      eventName:    document.getElementById('cfg-name').value.trim(),
+      eventDate:    document.getElementById('cfg-date').value.trim(),
+      primaryColor: document.getElementById('cfg-color').value,
+    };
+    saveConfigData(cfg);
+    updateStats();
+    toast('Configuración guardada', 'success');
+  }
+
+  /* ── Danger zone ── */
+  function confirmClear() {
+    if (!confirm('¿Borrar TODOS los invitados? Esta acción no se puede deshacer.')) return;
+    saveGuests([]);
+    toast('Lista de invitados borrada');
+  }
+
+  function confirmReset() {
+    if (!confirm('¿Restablecer TODO? Se borrarán invitados y configuración.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CONFIG_KEY);
+    updateStats();
+    renderTable();
+    loadConfig();
+    toast('Datos restablecidos');
+  }
+
+  /* ── Toast ── */
+  let toastTimer;
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+  }
+
+  /* ── Utils ── */
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('guest-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  // Modal keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && document.getElementById('guest-modal').classList.contains('open')) {
+      saveGuest();
+    }
+  });
+
+  /* ── Init ── */
+  updateStats();
+  renderTable();
+  loadConfig();
+</script>
+</body>
+</html>

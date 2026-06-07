@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encuentra tu lugar</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Lato:wght@300;400&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #b89c6e;
+      --gold-light: #d4b483;
+      --cream: #faf7f2;
+      --dark: #2c2c2c;
+      --muted: #7a7060;
+      --border: #e8dfc8;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--cream);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Lato', sans-serif;
+      color: var(--dark);
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 56px 48px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.06);
+    }
+
+    .ornament {
+      color: var(--gold);
+      font-size: 22px;
+      letter-spacing: 8px;
+      margin-bottom: 20px;
+      opacity: 0.7;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 2.4rem;
+      color: var(--dark);
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      color: var(--muted);
+      font-size: 1.05rem;
+      margin-bottom: 40px;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .divider span {
+      color: var(--gold);
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 14px 16px;
+      font-family: 'Lato', sans-serif;
+      font-size: 1rem;
+      color: var(--dark);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 20px;
+    }
+    input[type="text"]:focus {
+      border-color: var(--gold);
+      background: #fff;
+    }
+
+    button {
+      width: 100%;
+      background: var(--gold);
+      color: #fff;
+      border: none;
+      border-radius: 2px;
+      padding: 15px;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--gold-light); }
+    button:active { transform: scale(0.99); }
+
+    /* Result */
+    #result { margin-top: 32px; }
+
+    .result-card {
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 32px 24px;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .result-card.error {
+      border-color: #e0c4c4;
+      background: #fdf8f8;
+    }
+
+    .guest-photo {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .result-greeting {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .result-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 20px;
+    }
+
+    .table-label {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .table-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 5rem;
+      font-weight: 300;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .table-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    .seat-info {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .error-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      color: #a07070;
+    }
+
+    .error-sub {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .suggestions {
+      margin-top: 16px;
+      text-align: left;
+    }
+    .suggestions p {
+      font-size: 0.75rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .suggestion-item {
+      padding: 10px 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--dark);
+      margin-bottom: 6px;
+      transition: border-color 0.15s;
+    }
+    .suggestion-item:hover { border-color: var(--gold); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .footer {
+      margin-top: 48px;
+      font-size: 0.75rem;
+      color: #ccc;
+      letter-spacing: 1px;
+    }
+    .footer a {
+      color: var(--gold);
+      text-decoration: none;
+      font-size: 0.7rem;
+    }
+
+    #event-title { display: none; }
+    #event-subtitle { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="ornament">✦ ✦ ✦</div>
+  <h1 id="event-title">Encuentra tu lugar</h1>
+  <div class="subtitle" id="event-subtitle">Ingresa tu nombre para encontrar tu mesa</div>
+  <div class="divider"><span>❧</span></div>
+
+  <label for="nameInput">Tu nombre completo</label>
+  <input
+    type="text"
+    id="nameInput"
+    placeholder="Ej: María García"
+    autocomplete="off"
+    autocorrect="off"
+    spellcheck="false"
+  />
+  <button onclick="buscar()">Buscar mi lugar</button>
+
+  <div id="result"></div>
+</div>
+
+<div class="footer">
+  <a href="admin.html">⚙ Administrar</a>
+</div>
+
+<script>
+  const STORAGE_KEY = 'wedding_guests';
+  const CONFIG_KEY  = 'wedding_config';
+
+  function getGuests() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function getConfig() {
+    try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
+    catch { return {}; }
+  }
+
+  function normalize(str) {
+    return str
+      .toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9 ]/g, '')
+      .trim();
+  }
+
+  // Levenshtein distance between two strings
+  function levenshtein(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = a[i-1] === b[j-1]
+          ? dp[i-1][j-1]
+          : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      }
+    }
+    return dp[m][n];
+  }
+
+  // Score a guest against a query (lower = better match)
+  // Returns null if no match good enough
+  function matchScore(guest, qNorm) {
+    const gNorm = normalize(guest.name);
+    const gWords = gNorm.split(' ').filter(Boolean);
+    const qWords = qNorm.split(' ').filter(Boolean);
+
+    // Exact full match
+    if (gNorm === qNorm) return 0;
+
+    // Substring containment
+    if (gNorm.includes(qNorm) || qNorm.includes(gNorm)) return 0.5;
+
+    // Word-level matching: each query word vs each guest word
+    let totalScore = 0;
+    let matchedWords = 0;
+    for (const qw of qWords) {
+      let best = Infinity;
+      for (const gw of gWords) {
+        const longer = Math.max(qw.length, gw.length);
+        if (longer === 0) continue;
+        const dist = levenshtein(qw, gw);
+        // Allow proportional errors: 1 typo per 4 chars
+        const tolerance = Math.floor(longer / 4);
+        if (dist <= tolerance) best = Math.min(best, dist / longer);
+        // Also check if one word starts with the other (prefix match)
+        if (gw.startsWith(qw) || qw.startsWith(gw)) best = Math.min(best, 0.1);
+      }
+      if (best < Infinity) { totalScore += best; matchedWords++; }
+    }
+
+    // Need at least half the query words to match
+    if (matchedWords === 0 || matchedWords < Math.ceil(qWords.length / 2)) return null;
+
+    return totalScore / qWords.length;
+  }
+
+  function applyConfig() {
+    const cfg = getConfig();
+    const title = document.getElementById('event-title');
+    const sub   = document.getElementById('event-subtitle');
+    if (cfg.eventName) {
+      title.textContent = cfg.eventName;
+      title.style.display = 'block';
+    } else {
+      title.textContent = 'Encuentra tu lugar';
+      title.style.display = 'block';
+    }
+    if (cfg.eventDate) {
+      sub.textContent = cfg.eventDate;
+      sub.style.display = 'block';
+    } else {
+      sub.textContent = 'Ingresa tu nombre para encontrar tu mesa';
+      sub.style.display = 'block';
+    }
+    if (cfg.primaryColor) {
+      document.documentElement.style.setProperty('--gold', cfg.primaryColor);
+    }
+  }
+
+  applyConfig();
+
+  document.getElementById('nameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') buscar();
+  });
+
+  function buscar() {
+    const query    = document.getElementById('nameInput').value.trim();
+    const guests   = getGuests();
+    const resultEl = document.getElementById('result');
+
+    if (!query) { resultEl.innerHTML = ''; return; }
+
+    const qNorm = normalize(query);
+
+    // Score every guest, keep those that match
+    const scored = guests
+      .map(g => ({ g, score: matchScore(g, qNorm) }))
+      .filter(({ score }) => score !== null)
+      .sort((a, b) => a.score - b.score);
+
+    if (scored.length === 0) {
+      resultEl.innerHTML = `
+        <div class="result-card error">
+          <div class="error-text">No encontramos tu nombre</div>
+          <div class="error-sub">Intenta con tu nombre completo o consulta a un organizador</div>
+        </div>`;
+      return;
+    }
+
+    // If top score is clearly best (gap > 0.3 to second, or only one result), show directly
+    const top = scored[0];
+    const second = scored[1];
+    const clearWinner = scored.length === 1 || (second.score - top.score > 0.3) || top.score === 0;
+
+    if (clearWinner) {
+      const found = top.g;
+      resultEl.innerHTML = `
+        <div class="result-card">
+          ${found.photo ? `<img class="guest-photo" src="${found.photo}" alt="${escapeHtml(found.name)}" />` : ''}
+          <div class="result-greeting">¡Bienvenido/a,</div>
+          <div class="result-name">${escapeHtml(found.name)}!</div>
+          <div class="table-label">Tu mesa</div>
+          <div class="table-number">${escapeHtml(String(found.table))}</div>
+          ${found.tableName ? `<div class="table-name">${escapeHtml(found.tableName)}</div>` : ''}
+          ${found.seat  ? `<div class="seat-info">Asiento: <strong>${escapeHtml(found.seat)}</strong></div>` : ''}
+          ${found.notes ? `<div class="seat-info">${escapeHtml(found.notes)}</div>` : ''}
+        </div>`;
+    } else {
+      // Show top candidates for the user to pick
+      const items = scored.slice(0, 5).map(({ g }) =>
+        `<div class="suggestion-item" onclick="selectGuest('${escapeAttr(g.name)}')">${escapeHtml(g.name)}</div>`
+      ).join('');
+      resultEl.innerHTML = `
+        <div class="result-card">
+          <div class="error-text">¿Eres alguno de estos?</div>
+          <div class="suggestions">
+            <p>Selecciona tu nombre</p>
+            ${items}
+          </div>
+        </div>`;
+    }
+  }
+
+  function selectGuest(name) {
+    document.getElementById('nameInput').value = name;
+    buscar();
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function escapeAttr(str) {
+    return String(str).replace(/'/g,"\\'");
+  }
+</script>
+</body>
+</html>
