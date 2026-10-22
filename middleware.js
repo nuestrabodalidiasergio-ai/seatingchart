@@ -5,6 +5,7 @@
 
 export const config = {
   matcher: ['/admin', '/admin.html', '/admin/:path*'],
+  runtime: 'nodejs',
 };
 
 function unauthorized() {
