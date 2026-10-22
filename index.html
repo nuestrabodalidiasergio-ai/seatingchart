@@ -236,6 +236,34 @@
     }
     .suggestion-item:hover { border-color: var(--gold); }
 
+    .tablemates {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      text-align: left;
+    }
+    .tablemates-title {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .tablemates ul {
+      list-style: none;
+      columns: 2;
+      column-gap: 16px;
+    }
+    .tablemates li {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      color: var(--dark);
+      padding: 3px 0;
+      break-inside: avoid;
+    }
+    @media (max-width: 380px) { .tablemates ul { columns: 1; } }
+
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -344,35 +372,29 @@
     const gNorm = normalize(guest.name);
     const gWords = gNorm.split(' ').filter(Boolean);
     const qWords = qNorm.split(' ').filter(Boolean);
+    if (!qWords.length) return null;
 
     // Exact full match
     if (gNorm === qNorm) return 0;
 
-    // Substring containment
-    if (gNorm.includes(qNorm) || qNorm.includes(gNorm)) return 0.5;
-
-    // Word-level matching: each query word vs each guest word
-    let totalScore = 0;
-    let matchedWords = 0;
+    // Word-level matching: each query word vs each guest word.
+    // 0 = exact word, 0.1 = prefix, dist/len = small typo, 1 = not found.
+    let total = 0, matched = 0;
     for (const qw of qWords) {
       let best = Infinity;
       for (const gw of gWords) {
+        if (qw === gw) { best = 0; break; }
+        if (qw.length >= 2 && gw.length >= 2 && (gw.startsWith(qw) || qw.startsWith(gw))) best = Math.min(best, 0.1);
         const longer = Math.max(qw.length, gw.length);
-        if (longer === 0) continue;
         const dist = levenshtein(qw, gw);
-        // Allow proportional errors: 1 typo per 4 chars
-        const tolerance = Math.floor(longer / 4);
-        if (dist <= tolerance) best = Math.min(best, dist / longer);
-        // Also check if one word starts with the other (prefix match)
-        if (gw.startsWith(qw) || qw.startsWith(gw)) best = Math.min(best, 0.1);
+        if (dist <= Math.floor(longer / 4)) best = Math.min(best, 0.2 + dist / longer);
       }
-      if (best < Infinity) { totalScore += best; matchedWords++; }
+      if (best < Infinity) { total += best; matched++; } else { total += 1; }
     }
 
     // Need at least half the query words to match
-    if (matchedWords === 0 || matchedWords < Math.ceil(qWords.length / 2)) return null;
-
-    return totalScore / qWords.length;
+    if (matched === 0 || matched < Math.ceil(qWords.length / 2)) return null;
+    return total / qWords.length;
   }
 
   function applyConfig() {
@@ -432,7 +454,7 @@
     // If top score is clearly best (gap > 0.3 to second, or only one result), show directly
     const top = scored[0];
     const second = scored[1];
-    const clearWinner = scored.length === 1 || (second.score - top.score > 0.3) || top.score === 0;
+    const clearWinner = scored.length === 1 || (second.score - top.score > 0.3) || (top.score === 0 && second.score > 0);
 
     if (clearWinner) {
       const found = top.g;
@@ -446,10 +468,11 @@
           ${found.tableName ? `<div class="table-name">${escapeHtml(found.tableName)}</div>` : ''}
           ${found.seat  ? `<div class="seat-info">Asiento: <strong>${escapeHtml(found.seat)}</strong></div>` : ''}
           ${found.notes ? `<div class="seat-info">${escapeHtml(found.notes)}</div>` : ''}
+          ${tablemates(found, guests)}
         </div>`;
     } else {
       // Show top candidates for the user to pick
-      const items = scored.slice(0, 5).map(({ g }) =>
+      const items = scored.slice(0, 10).map(({ g }) =>
         `<div class="suggestion-item" onclick="selectGuest('${escapeAttr(g.name)}')">${escapeHtml(g.name)}</div>`
       ).join('');
       resultEl.innerHTML = `
@@ -461,6 +484,16 @@
           </div>
         </div>`;
     }
+  }
+
+  function tablemates(found, guests) {
+    const mates = guests.filter(g => g !== found && String(g.table) === String(found.table));
+    if (!mates.length) return '';
+    return `
+      <div class="tablemates">
+        <div class="tablemates-title">Te acompañan en la mesa</div>
+        <ul>${mates.map(g => `<li>${escapeHtml(g.name)}</li>`).join('')}</ul>
+      </div>`;
   }
 
   function selectGuest(name) {
