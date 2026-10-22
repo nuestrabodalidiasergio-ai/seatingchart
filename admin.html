@@ -444,6 +444,8 @@
         <input type="text" id="search-input" placeholder="Buscar invitado..." oninput="renderTable()" />
         <button class="btn btn-primary" onclick="openAddModal()">+ Agregar invitado</button>
         <button class="btn btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <button class="btn btn-outline" onclick="exportPublishJSON()">⬇ Descargar invitados.json (para publicar)</button>
+        <button class="btn btn-outline" onclick="loadPublished(true)">⟳ Cargar lista publicada</button>
         <button class="btn btn-danger btn-sm" onclick="confirmClear()">Borrar todo</button>
       </div>
 
@@ -1008,6 +1010,34 @@
     toast('Datos restablecidos');
   }
 
+  /* ── Publicación: invitados.json en el repo ── */
+  function exportPublishJSON() {
+    const data = { config: getConfig(), guests: getGuests() };
+    if (!data.guests.length) { toast('No hay invitados', 'error'); return; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'invitados.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('Sube este archivo al repo para publicarlo');
+  }
+
+  async function loadPublished(manual) {
+    try {
+      const r = await fetch('invitados.json', { cache: 'no-store' });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const guests = Array.isArray(d.guests) ? d.guests : [];
+      if (!guests.length) { if (manual) toast('La lista publicada está vacía', 'error'); return; }
+      if (manual && getGuests().length && !confirm('¿Reemplazar la lista de este navegador con la publicada?')) return;
+      saveGuests(guests);
+      if (d.config) saveConfigData(d.config);
+      updateStats(); renderTable(); loadConfig();
+      toast('Lista publicada cargada (' + guests.length + ' invitados)');
+    } catch { if (manual) toast('No se pudo leer invitados.json', 'error'); }
+  }
+
   /* ── Toast ── */
   let toastTimer;
   function toast(msg, type = '') {
@@ -1041,6 +1071,7 @@
   /* ── Init ── */
   updateStats();
   renderTable();
+  if (!getGuests().length) loadPublished(false);
   loadConfig();
 </script>
 </body>

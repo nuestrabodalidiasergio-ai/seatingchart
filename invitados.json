@@ -1,0 +1,13 @@
+{
+  "config": {},
+  "guests": [
+    {
+      "name": "Rony Madrid",
+      "table": 5
+    },
+    {
+      "name": "Nino de Madrid",
+      "table": 5
+    }
+  ]
+}
