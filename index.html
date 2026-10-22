@@ -312,35 +312,39 @@
 </div>
 
 <script>
-  const STORAGE_KEY = 'wedding_guests';
-  const CONFIG_KEY  = 'wedding_config';
+  // La lista vive en línea (/api/guests). Se vuelve a pedir en cada búsqueda
+  // (si pasaron más de 10 s), así los cambios del panel se ven al instante.
+  let PUBLISHED = { config: {}, guests: [] };
+  let lastLoad = 0;
 
-  // La lista publicada vive en invitados.json (en el repo / Vercel).
-  // localStorage solo se usa como respaldo si ese archivo no existe o viene vacío.
-  let PUBLISHED = null;
-
-  function localGuests() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch { return []; }
-  }
-  function localConfig() {
-    try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
-    catch { return {}; }
+  async function fetchJSON(url) {
+    const r = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
   }
 
-  const dataReady = fetch('invitados.json', { cache: 'no-store' })
-    .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d) PUBLISHED = d; })
-    .catch(() => {});
+  async function loadData() {
+    try {
+      PUBLISHED = await fetchJSON('/api/guests');
+    } catch {
+      try { PUBLISHED = await fetchJSON('invitados.json'); } catch {}
+    }
+    lastLoad = Date.now();
+  }
+
+  let dataReady = loadData();
+
+  async function freshData() {
+    if (Date.now() - lastLoad > 10000) dataReady = loadData();
+    await dataReady;
+  }
 
   function getGuests() {
-    if (PUBLISHED && Array.isArray(PUBLISHED.guests) && PUBLISHED.guests.length) return PUBLISHED.guests;
-    return localGuests();
+    return (PUBLISHED && Array.isArray(PUBLISHED.guests)) ? PUBLISHED.guests : [];
   }
 
   function getConfig() {
-    if (PUBLISHED && PUBLISHED.config && Object.keys(PUBLISHED.config).length) return PUBLISHED.config;
-    return localConfig();
+    return (PUBLISHED && PUBLISHED.config) || {};
   }
 
   function normalize(str) {
@@ -427,7 +431,7 @@
   });
 
   async function buscar() {
-    await dataReady;
+    await freshData();
     const query    = document.getElementById('nameInput').value.trim();
     const guests   = getGuests();
     const resultEl = document.getElementById('result');

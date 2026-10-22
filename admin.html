@@ -275,6 +275,12 @@
       padding: 16px;
       background: #fff;
     }
+    #sync-status {
+      font-size: 0.8rem; padding: 4px 10px; border-radius: 999px;
+      background: #eef3ea; color: #3d6b2e; white-space: nowrap;
+    }
+    #sync-status[data-state="saving"] { background: #f4efe4; color: #8a6d3b; }
+    #sync-status[data-state="error"]  { background: #fbeaea; color: #a33a3a; font-weight: 700; }
     .qr-url {
       font-size: 0.8rem;
       color: var(--muted);
@@ -408,6 +414,7 @@
 <header>
   <h1>Seating Chart <span class="gold">·</span> Admin</h1>
   <div class="header-actions">
+    <span id="sync-status" data-state="saving">Cargando…</span>
     <a href="index.html" target="_blank" class="btn btn-outline btn-sm">Ver página de invitados ↗</a>
   </div>
 </header>
@@ -444,8 +451,7 @@
         <input type="text" id="search-input" placeholder="Buscar invitado..." oninput="renderTable()" />
         <button class="btn btn-primary" onclick="openAddModal()">+ Agregar invitado</button>
         <button class="btn btn-outline" onclick="exportCSV()">⬇ Exportar CSV</button>
-        <button class="btn btn-outline" onclick="exportPublishJSON()">⬇ Descargar invitados.json (para publicar)</button>
-        <button class="btn btn-outline" onclick="loadPublished(true)">⟳ Cargar lista publicada</button>
+        <button class="btn btn-outline" onclick="loadFromServer(true)">⟳ Recargar</button>
         <button class="btn btn-danger btn-sm" onclick="confirmClear()">Borrar todo</button>
       </div>
 
@@ -531,7 +537,7 @@
       <div class="form-group" style="margin-bottom:20px;max-width:480px">
         <label>URL de la página de invitados</label>
         <div style="display:flex;gap:8px">
-          <input type="url" id="qr-url-input" placeholder="https://tu-dominio.com/index.html" />
+          <input type="url" id="qr-url-input" placeholder="https://seatingchart-zeta.vercel.app" />
           <button class="btn btn-primary" onclick="generateQR()">Generar</button>
         </div>
       </div>
@@ -640,23 +646,86 @@
 
   let pendingImport = [];
 
-  /* ── Storage ── */
-  function getGuests() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    catch { return []; }
-  }
+  /* ── Datos en línea (Vercel) ──
+     La lista vive en /api/guests. Cada cambio se guarda en línea al instante
+     y el buscador de invitados lo ve de inmediato. */
+  let DATA = { config: {}, guests: [] };
+  let loaded = false;
+  let saveTimer = null, saving = false, dirty = false;
+
+  function getGuests() { return DATA.guests; }
+  function getConfig() { return DATA.config || {}; }
+
   function saveGuests(list) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    DATA.guests = list;
     updateStats();
     renderTable();
-  }
-  function getConfig() {
-    try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
-    catch { return {}; }
+    queueSave();
   }
   function saveConfigData(cfg) {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+    DATA.config = cfg;
+    queueSave();
   }
+
+  function setSyncStatus(state, text) {
+    const el = document.getElementById('sync-status');
+    if (!el) return;
+    el.dataset.state = state;
+    el.textContent = text;
+  }
+
+  function queueSave() {
+    if (!loaded) return;
+    dirty = true;
+    setSyncStatus('saving', 'Guardando…');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(pushToServer, 400);
+  }
+
+  async function pushToServer() {
+    if (saving) { saveTimer = setTimeout(pushToServer, 300); return; }
+    saving = true; dirty = false;
+    try {
+      const r = await fetch('/api/guests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ config: getConfig(), guests: getGuests() }),
+      });
+      const res = await r.json().catch(() => ({}));
+      if (r.status === 401) throw new Error('Sesión vencida: recarga la página y vuelve a poner la contraseña');
+      if (!r.ok) throw new Error(res.error || 'No se pudo guardar');
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA.guests)); localStorage.setItem(CONFIG_KEY, JSON.stringify(DATA.config)); } catch {}
+      if (!dirty) setSyncStatus('ok', '✓ Guardado en línea');
+    } catch (err) {
+      dirty = true;
+      setSyncStatus('error', '⚠ Sin guardar');
+      toast(err.message || 'No se pudo guardar. Revisa tu conexión.', 'error');
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function loadFromServer(manual) {
+    setSyncStatus('saving', 'Cargando…');
+    try {
+      const r = await fetch('/api/guests?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      DATA = { config: d.config || {}, guests: Array.isArray(d.guests) ? d.guests : [] };
+      loaded = true;
+      updateStats(); renderTable(); loadConfig();
+      setSyncStatus('ok', '✓ Lista en línea');
+      if (manual) toast('Lista actualizada (' + DATA.guests.length + ' invitados)');
+    } catch {
+      setSyncStatus('error', '⚠ Sin conexión');
+      toast('No se pudo cargar la lista en línea. Recarga la página.', 'error');
+    }
+  }
+
+  window.addEventListener('beforeunload', e => {
+    if (dirty || saving) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   /* ── Stats ── */
   function updateStats() {
@@ -995,47 +1064,19 @@
 
   /* ── Danger zone ── */
   function confirmClear() {
-    if (!confirm('¿Borrar TODOS los invitados? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Borrar TODOS los invitados? Se borran EN LÍNEA y el buscador quedará vacío.')) return;
     saveGuests([]);
     toast('Lista de invitados borrada');
   }
 
   function confirmReset() {
-    if (!confirm('¿Restablecer TODO? Se borrarán invitados y configuración.')) return;
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(CONFIG_KEY);
+    if (!confirm('¿Restablecer TODO? Se borrarán invitados y configuración EN LÍNEA para todos.')) return;
+    DATA = { config: {}, guests: [] };
     updateStats();
     renderTable();
     loadConfig();
+    queueSave();
     toast('Datos restablecidos');
-  }
-
-  /* ── Publicación: invitados.json en el repo ── */
-  function exportPublishJSON() {
-    const data = { config: getConfig(), guests: getGuests() };
-    if (!data.guests.length) { toast('No hay invitados', 'error'); return; }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'invitados.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    toast('Sube este archivo al repo para publicarlo');
-  }
-
-  async function loadPublished(manual) {
-    try {
-      const r = await fetch('invitados.json', { cache: 'no-store' });
-      if (!r.ok) throw new Error();
-      const d = await r.json();
-      const guests = Array.isArray(d.guests) ? d.guests : [];
-      if (!guests.length) { if (manual) toast('La lista publicada está vacía', 'error'); return; }
-      if (manual && getGuests().length && !confirm('¿Reemplazar la lista de este navegador con la publicada?')) return;
-      saveGuests(guests);
-      if (d.config) saveConfigData(d.config);
-      updateStats(); renderTable(); loadConfig();
-      toast('Lista publicada cargada (' + guests.length + ' invitados)');
-    } catch { if (manual) toast('No se pudo leer invitados.json', 'error'); }
   }
 
   /* ── Toast ── */
@@ -1071,8 +1112,8 @@
   /* ── Init ── */
   updateStats();
   renderTable();
-  if (!getGuests().length) loadPublished(false);
   loadConfig();
+  loadFromServer(false);
 </script>
 </body>
 </html>
